@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Clib",
+  "description": "clib",
+  "version": "1.0",
+  "author": "AlixCozmo",
+  "homepage_url": "https://github.com/AlixCozmo/Kiwi-ClientPlugin-Lib",
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.10.241.24.217/*"],
+      "js": ["./clientlib.js"]
+    }
+  ]
+}
