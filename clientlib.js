@@ -7,33 +7,25 @@ function InjectScript(path, loop) {
         datareturn = ScriptEventChild(e.detail)
     };
     let script = document.createElement('script');
-    let string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("InjectEvent", {detail: data})) }, 1000);';
+    let string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("InjectEvent", {detail: data})); console.log(data) }, 1000);';
     string = string.replace('TEXTHERE', path); // replaces TEXTHERE with the path
     script.textContent = string;
     (document.head || document.documentElement).appendChild(script);
-    if (loop == false) {
-    
-        document.addEventListener('InjectEvent', fDataReturn);
-        (document.head || document.documentElement).appendChild(script);
-        script.parentNode.removeChild(script);
-        document.removeEventListener('InjectEvent', fDataReturn);
-        return datareturn;
-    }
-    
-}
-
-function ScriptEvent() {
-    let datareturn;
-    let fDataEventLength = function(e) {
-        datareturn = LengthScriptEvent(e.detail)
-    };
-    document.addEventListener('InjectEvent', fDataEventLength);
-    document.removeEventListener('InjectEvent', fDataEventLength);
-    console.log(datareturn)
+    document.addEventListener('InjectEvent', fDataReturn);
+    script.parentNode.removeChild(script);
+    document.removeEventListener('InjectEvent', fDataReturn);
     return datareturn;
+    //if (loop == false) {
+    
+    //    script.parentNode.removeChild(script);
+    //    document.removeEventListener('InjectEvent', fDataReturn);
+    //    return datareturn;
+    //}
+    
 }
 
 function ScriptEventChild(datareturn) {
+    ReturnedData = datareturn;
     return datareturn;
 }
 
@@ -49,6 +41,17 @@ var ClientLib = {
 }
 function GetSettings() {
     return InjectScript('kiwi.state.getSettings("settings")', false)
+}
+
+function CommandListener() {
+    return InjectScript('window.kiwi.on("input.command.test", console.log("TEST"))')
+}
+
+function GetLatestCommand() { // get the latest run command
+    var HistoryNum = InjectScript('window.kiwi.state.getBufferByName(1, "#ratchat").input_history_pos', false)
+    var string = 'window.kiwi.input_history[HistoryNum]';
+    string = string.replace('HistoryNum', (HistoryNum-1)); // replace HistoryNum with the number. -1 to HistoryNum because it starts at 0
+    return InjectScript(string, false)
 }
 
 function GetLayout() {
