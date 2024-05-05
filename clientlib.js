@@ -1,4 +1,5 @@
 console.log("init");
+const messagestring = [];
 
 function InjectScript(path, loop) {
     // this function injects a script onto the page and returns the data that the script returns
@@ -7,20 +8,19 @@ function InjectScript(path, loop) {
         datareturn = ScriptEventChild(e.detail)
     };
     let script = document.createElement('script');
-    let string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("InjectEvent", {detail: data})); console.log(data) }, 1000);';
+    if (loop == true) {
+        string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("InjectEvent", {detail: data})); console.log(data) }, 1000);';
+    }
+    else {
+        string = 'var data = TEXTHERE; document.dispatchEvent(new CustomEvent("InjectEvent", {detail: data})); console.log(data)';
+    }
     string = string.replace('TEXTHERE', path); // replaces TEXTHERE with the path
     script.textContent = string;
-    (document.head || document.documentElement).appendChild(script);
     document.addEventListener('InjectEvent', fDataReturn);
+    (document.head || document.documentElement).appendChild(script);
     script.parentNode.removeChild(script);
     document.removeEventListener('InjectEvent', fDataReturn);
     return datareturn;
-    //if (loop == false) {
-    
-    //    script.parentNode.removeChild(script);
-    //    document.removeEventListener('InjectEvent', fDataReturn);
-    //    return datareturn;
-    //}
     
 }
 
@@ -44,7 +44,7 @@ function GetSettings() {
 }
 
 function CommandListener() {
-    return InjectScript('window.kiwi.on("input.command.test", console.log("TEST"))')
+    return InjectScript('window.kiwi.on("input.command.test")')
 }
 
 function GetLatestCommand() { // get the latest run command
@@ -63,10 +63,12 @@ function GetVersion() {
 }
 
 function GetMessages(channel, length) {
-    let string = 'kiwi.state.getBufferByName(1, "CHANNEL").messagesObj.messages[LENGTH].message';
-    string = string.replace('CHANNEL', channel);
-    string = string.replace('LENGTH', length);
-    return InjectScript(string, false)
+    //let string = 'kiwi.state.getBufferByName(1, "CHANNEL").messagesObj.messages[LENGTH].message';
+    //string = string.replace('CHANNEL', channel);
+    //string = string.replace('LENGTH', length);
+    //return InjectScript(string, false)
+    messagestring[0] = InjectMessageScript(channel, length);
+    return messagestring;
 }
 
 function GetLength(channel, length) {
