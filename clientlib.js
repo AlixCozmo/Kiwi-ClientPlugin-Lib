@@ -1,6 +1,13 @@
 console.log("init");
+//var GlobalInt = 0;
+var ActiveChannel = ""
+var lastcommandtimestamp = 0;
+var ActiveNetwork = ""
+setInterval(function() {
+    Main()
+}, 10000);
 
-function InjectScript(path, loop, eventname, listener=false) {
+function InjectScript(path, loop, eventname, listener=false, LocalSend=false) {
     // this function injects a script onto the page and returns the data that the script returns
     let datareturn;
     let fDataReturn = function(e) {
@@ -9,27 +16,36 @@ function InjectScript(path, loop, eventname, listener=false) {
     let script = document.createElement('script');
     if (listener == false) {
         if (loop == true) {
-            string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data})); console.log(data) }, 1000);';
+            string = 'setInterval(function() { var data = TEXTHERE; document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data})); }, 1000);';
         }
         else {
-            string = 'var data = TEXTHERE; document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data})); console.log(data)';
+            string = 'var data = TEXTHERE; document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data}));';
         }
     }
     else {
         if (loop == true) {
-            string = 'setInterval(function() { var data = window.kiwi.on("TEXTHERE", document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data}))); console.log(data) }, 1000);';
+            string = 'setInterval(function() { var data = window.kiwi.on("TEXTHERE", document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data}))); }, 1000);';
         }
         else {
-            string = 'var data = window.kiwi.on("TEXTHERE", function() { document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data})); console.log(data) })';
+            string = 'var data = window.kiwi.on("TEXTHERE", function() { document.dispatchEvent(new CustomEvent("EVENTNAME", {detail: data}));})';
         }
     }
+    if (LocalSend == true) {
+        string = 'TEXTHERE';
+    }
     string = string.replace('TEXTHERE', path); // replaces TEXTHERE with the path
-    string = string.replace('EVENTNAME', eventname); // replaces TEXTHERE with the path
+    if (LocalSend == false) {
+        string = string.replace('EVENTNAME', eventname); // replaces TEXTHERE with the path
+    }
     script.textContent = string;
-    document.addEventListener(eventname, fDataReturn);
+    if (LocalSend == false) {
+        document.addEventListener(eventname, fDataReturn);
+    }
     (document.head || document.documentElement).appendChild(script);
     if (loop == false) {
-        script.parentNode.removeChild(script);
+        if (LocalSend == false) {
+            script.parentNode.removeChild(script);
+        }
         document.removeEventListener(eventname, fDataReturn);
     }
     return datareturn;
@@ -59,11 +75,37 @@ function CommandListener() {
     return InjectScript('input.command.[/test]', false, "listenerevent", true)
 }
 
-function GetLatestCommand() { // get the latest run command
-    var HistoryNum = InjectScript('window.kiwi.state.getBufferByName(1, "#ratchat").input_history_pos', false, "latestcommandevent")
-    var string = 'window.kiwi.state.getBufferByName(1, "#ratchat").input_history[HistoryNum]';
+function GetLatestCommand(channel, networkid) { // get the latest run command
+    let i = GetMessagesAmount(channel);
+    let a = i - 5;
+    for (a < i; a++;) { // loops through the last 5 messages to find the last command timestamp
+        if (GetNick(channel) == "*") {
+            lastcommandtimestamp = GetTime(channel, a); // writes the timestamp of the last command to global variable for safekeeping
+            continue
+        }
+        else {
+            break;
+        }
+    }
+    string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history_pos'
+    string = string.replace('CHANNEL', channel);
+    string = string.replace('NETWORKID', ActiveNetwork);
+    var HistoryNum = InjectScript(string, false, "latestcommandevent")
+    //HistoryNum += GlobalInt;
+    if (HistoryNum == 0) {
+        return "No command has been run yet";
+    }
+    var string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history[HistoryNum]';
+    string = string.replace('CHANNEL', channel);
+    string = string.replace('NETWORKID', ActiveNetwork);
     string = string.replace('HistoryNum', (HistoryNum-1)); // replace HistoryNum with the number. -1 to HistoryNum because it starts at 0
-    return InjectScript(string, false, "latestcommandevent")
+    temp = InjectScript(string, false, "latestcommandevent")
+    if (temp == undefined) {
+        return "No command has been run yet";
+    }
+    else {
+        return temp;
+    }
 }
 
 function GetLayout() {
@@ -75,26 +117,140 @@ function GetVersion() {
 }
 
 function GetMessages(channel, index) {
-    let string = 'kiwi.state.getBufferByName(1, "CHANNEL").messagesObj.messages[LENGTH].message';
+    let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[LENGTH].message';
     string = string.replace('CHANNEL', channel);
     string = string.replace('LENGTH', index);
+    string = string.replace('NETWORKID', ActiveNetwork);
     return InjectScript(string, false, "messageevent")
     //messagestring[0] = InjectMessageScript(channel, length);
     //return messagestring;
 }
 
 function GetLength(channel, length) {
-    let string = 'window.kiwi.state.getBufferByName(1, "CHANNEL").messagesObj.messages.length';
+    let string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages.length';
     string = string.replace('CHANNEL', channel);
     string = string.replace('LENGTH', length);
+    string = string.replace('NETWORKID', ActiveNetwork);
     return InjectScript(string, false, "lengthevent")
 }
 
+function GetMessagesAmount(channel) { // gets the amount of messages in a channel, this should 
+    // preferrably be used with -1 since it starts at 0
+    let string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages.length';
+    string = string.replace('CHANNEL', channel);
+    string = string.replace('NETWORKID', ActiveNetwork);
+    return InjectScript(string, false, "lengthamountevent")
+}
+
 function GetTime(channel, length) {
-    let string = 'kiwi.state.getBufferByName(1, "CHANNEL").messagesObj.messages[LENGTH].time';
+    let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[LENGTH].time';
     string = string.replace('CHANNEL', channel);
     string = string.replace('LENGTH', length);
+    string = string.replace('NETWORKID', ActiveNetwork);
     return InjectScript(string, false, "timeevent")
+}
+
+function GetActiveChannel() {
+    let string = 'kiwi.state.getActiveBuffer().name';
+    return InjectScript(string, false, "activechannelevent")
+}
+
+function GetActiveNetwork() {
+    let string = 'kiwi.state.getActiveNetwork().id';
+    return InjectScript(string, false, "activechannelevent")
+}
+
+function GetNick(channel) {
+    let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.nick';
+    string = string.replace('CHANNEL', channel);
+    string = string.replace('NETWORKID', ActiveNetwork);
+    return InjectScript(string, false, "nickevent")
+}
+
+function LocalEcho(text) { // sends a message locally
+    temp = 'window.kiwi.emit("input.raw", "/echo TEXTHERE")';
+    temp = temp.replace('TEXTHERE', text);
+    InjectScript(temp, false, "localevent", false, true)
+}
+
+function Main() {
+    ActiveNetwork = GetActiveNetwork();
+    ActiveChannel = GetActiveChannel();
+    // this is the main function that runs every 10 seconds
+    if (ActiveChannel == "" || ActiveChannel == undefined || ActiveChannel == null) {
+        console.warn("No active channels found");
+        return;
+    }
+    console.log("Channel: " + ActiveChannel);
+    temp = GetLatestCommand(ActiveChannel, ActiveNetwork);
+    temp = CommandParser(temp);
+    if (temp == undefined) {
+        return;
+    }
+    else {
+        LocalEcho(temp);
+    }
+
+}
+
+function CommandParser(command) {
+    // this function parses the command given to it
+    if (command == "/test") {
+        //GlobalInt +=1;
+        return "Test command has been run";
+    }
+    if (command == "/deepl") {
+        //GlobalInt +=1;
+        return "hello!";
+    }
+}
+
+function GetConnectedNetworks() {
+    ConnectedNetworks = [];
+    networks = InjectScript('kiwi.state.networks', false, "networkevent")
+    for (let i = 0; i < networks.length; i++) {
+        string = i + ".state";
+        if (InjectScript(string, false, "networkevent") == "connected") {
+            ConnectedNetworks.push(networks[i]);
+        }
+    }
+}
+
+function GrabChannels() {
+    // Gets the currently active channels and places them into the activechannels array
+    //console.log("grabchannels");
+    let element = document.getElementsByClassName("kiwi-statebrowser-channel-name");
+    //let element=document.getElementsByClassName("kiwi-statebrowser kiwi-theme-bg");
+    let text = "";
+    let words = "";
+    activechannels.length = 0;
+    // empties the array so that a bunch of same data doesn't flood the array.
+    for (let elementnumber = 0; elementnumber < element.length; elementnumber++) {
+        text = element[elementnumber].innerText;
+        words = text.split(" ");
+        for (let wordnumber = 0; wordnumber < words.length; wordnumber++) {
+            //console.log("wordslength: " + words.length);
+            if (words[wordnumber].startsWith("#")) {
+                if (words[wordnumber].endsWith("a") || words[wordnumber].endsWith("b") || words[wordnumber].endsWith("c") || 
+                words[wordnumber].endsWith("d") || words[wordnumber].endsWith("e") || words[wordnumber].endsWith("f") || 
+                words[wordnumber].endsWith("g") || words[wordnumber].endsWith("h") || words[wordnumber].endsWith("i") || 
+                words[wordnumber].endsWith("j") || words[wordnumber].endsWith("k") || words[wordnumber].endsWith("l") || 
+                words[wordnumber].endsWith("m") || words[wordnumber].endsWith("n") || words[wordnumber].endsWith("o") || 
+                words[wordnumber].endsWith("p") || words[wordnumber].endsWith("q") || words[wordnumber].endsWith("r") || 
+                words[wordnumber].endsWith("s") || words[wordnumber].endsWith("t") || words[wordnumber].endsWith("u") || 
+                words[wordnumber].endsWith("v") || words[wordnumber].endsWith("w") || words[wordnumber].endsWith("x") || 
+                words[wordnumber].endsWith("y") || words[wordnumber].endsWith("z") || words[wordnumber].endsWith("0") || 
+                words[wordnumber].endsWith("1") || words[wordnumber].endsWith("2") || words[wordnumber].endsWith("3") || 
+                words[wordnumber].endsWith("4") || words[wordnumber].endsWith("5") || words[wordnumber].endsWith("6") || 
+                words[wordnumber].endsWith("7") || words[wordnumber].endsWith("8") || words[wordnumber].endsWith("9")) {
+                    activechannels.length = activechannels.length++;
+                    activechannels.push(words[wordnumber]);
+                    continue;
+
+                }
+            }
+        }
+    }
 }
 
 window.ClientLib = ClientLib;
