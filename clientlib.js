@@ -1,11 +1,12 @@
 console.log("init");
 //var GlobalInt = 0;
 var ActiveChannel = ""
-var lastcommandtimestamp = 0;
+var lastcommandtimestamps = [];
 var ActiveNetwork = ""
+var ConnectedNetworks = [];
 setInterval(function() {
     Main()
-}, 10000);
+}, 500);
 
 function InjectScript(path, loop, eventname, listener=false, LocalSend=false) {
     // this function injects a script onto the page and returns the data that the script returns
@@ -61,7 +62,7 @@ var ClientLib = {
     GetSettings: GetSettings,
     GetLayout: GetLayout,
     GetVersion: GetVersion,
-    GetMessages: GetMessages,
+    GetMessage: GetMessage,
     GetTime: GetTime,
     GetLength: GetLength
 
@@ -78,14 +79,25 @@ function CommandListener() {
 function GetLatestCommand(channel, networkid) { // get the latest run command
     let i = GetMessagesAmount(channel);
     let a = i - 5;
-    for (a < i; a++;) { // loops through the last 5 messages to find the last command timestamp
-        if (GetNick(channel) == "*") {
-            lastcommandtimestamp = GetTime(channel, a); // writes the timestamp of the last command to global variable for safekeeping
-            continue
+    let found = false; // if nick has been found
+    while (a < 0) { // makes sure that the loop doesn't go below 0
+        a++;
+    }
+    for (; a < i; a++) { // loops through the last 5 messages to find the last command timestamp
+        if (GetNick(channel, networkid, a) == "*") {
+            currentstamp = GetTime(channel, a);
+            if (CheckStampHistory(currentstamp, lastcommandtimestamps)) {
+                temp = GetMessage(channel, a)
+                if (temp == "-") {
+                    WriteToCommandStampHistory(currentstamp, lastcommandtimestamps);
+                    found = true;
+                    continue
+                }
+            }
         }
-        else {
-            break;
-        }
+    }
+    if (!found) {
+        return "No command has been run yet"; // return this message if no command is found
     }
     string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history_pos'
     string = string.replace('CHANNEL', channel);
@@ -116,7 +128,7 @@ function GetVersion() {
     return InjectScript('kiwi.version', false, "versionevent")
 }
 
-function GetMessages(channel, index) {
+function GetMessage(channel, index) {
     let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[LENGTH].message';
     string = string.replace('CHANNEL', channel);
     string = string.replace('LENGTH', index);
@@ -160,11 +172,14 @@ function GetActiveNetwork() {
     return InjectScript(string, false, "activechannelevent")
 }
 
-function GetNick(channel) {
-    let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.nick';
+function GetNick(channel, networkid, messageid) {
+    let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[MESSAGEID].nick';
     string = string.replace('CHANNEL', channel);
-    string = string.replace('NETWORKID', ActiveNetwork);
-    return InjectScript(string, false, "nickevent")
+    string = string.replace('NETWORKID', networkid);
+    string = string.replace('MESSAGEID', messageid);
+    temp = InjectScript(string, false, "nickevent");
+    //console.log(temp);
+    return temp;
 }
 
 function LocalEcho(text) { // sends a message locally
@@ -181,7 +196,7 @@ function Main() {
         console.warn("No active channels found");
         return;
     }
-    console.log("Channel: " + ActiveChannel);
+    //console.log("Channel: " + ActiveChannel);
     temp = GetLatestCommand(ActiveChannel, ActiveNetwork);
     temp = CommandParser(temp);
     if (temp == undefined) {
@@ -191,6 +206,22 @@ function Main() {
         LocalEcho(temp);
     }
 
+}
+
+function WriteToCommandStampHistory(stamp, lastcommandtimestamps) {
+    if (lastcommandtimestamps.length > 5) {
+        lastcommandtimestamps.shift();
+    }
+    lastcommandtimestamps.push(stamp);
+}
+
+function CheckStampHistory(stamp, lastcommandtimestamps) { // returns false if the stamp is already in the history
+    for (let i = 0; i < lastcommandtimestamps.length; i++) {
+        if (stamp == lastcommandtimestamps[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function CommandParser(command) {
