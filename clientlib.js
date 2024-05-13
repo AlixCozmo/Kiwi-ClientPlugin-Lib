@@ -64,7 +64,8 @@ var ClientLib = {
     GetVersion: GetVersion,
     GetMessage: GetMessage,
     GetTime: GetTime,
-    GetLength: GetLength
+    GetLength: GetLength,
+    GetMessages: GetMessages
 
 
 }
@@ -136,6 +137,24 @@ function GetMessage(channel, index) {
     return InjectScript(string, false, "messageevent")
     //messagestring[0] = InjectMessageScript(channel, length);
     //return messagestring;
+}
+
+function GetMessages(channel, amount, Filter=true) { // like GetMessage, but gets x amount of messages
+    // Filter is a boolean that filters out messages that are caused by commands being run. such as "-"
+    MessagesArray = [];
+    c = GetMessagesAmount(channel); // get the amount of messages in the channel
+    c = c - 1; // subtract 1 from the amount of messages
+    if (c < amount) { // if there are less than 5 messages, get the amount of messages available
+        amount = c;
+    }
+    for (let i = 0; i <= amount; i++) { // loop through the amount of messages
+        temp = GetMessage(channel, i)
+        if (temp == "-") { // if the message is a command, skip it
+            continue;
+        }
+        MessagesArray.push(temp); // get the message and push it to the array
+    }
+    return MessagesArray; // return the array
 }
 
 function GetLength(channel, length) {
@@ -230,6 +249,15 @@ function CommandParser(command) {
         //GlobalInt +=1;
         return "Test command has been run";
     }
+    if (command == "/messages") {
+
+        //GlobalInt +=1;
+        MessagesArray = GetMessages(ActiveChannel, 5);
+        for (let i = 0; i < (MessagesArray.length); i++) {
+            LocalEcho(("Replay: " + MessagesArray[i]));
+        }
+        return "Messages command has been run";
+    }
     if (command == "/deepl") {
         //GlobalInt +=1;
         return "hello!";
@@ -243,43 +271,6 @@ function GetConnectedNetworks() {
         string = i + ".state";
         if (InjectScript(string, false, "networkevent") == "connected") {
             ConnectedNetworks.push(networks[i]);
-        }
-    }
-}
-
-function GrabChannels() {
-    // Gets the currently active channels and places them into the activechannels array
-    //console.log("grabchannels");
-    let element = document.getElementsByClassName("kiwi-statebrowser-channel-name");
-    //let element=document.getElementsByClassName("kiwi-statebrowser kiwi-theme-bg");
-    let text = "";
-    let words = "";
-    activechannels.length = 0;
-    // empties the array so that a bunch of same data doesn't flood the array.
-    for (let elementnumber = 0; elementnumber < element.length; elementnumber++) {
-        text = element[elementnumber].innerText;
-        words = text.split(" ");
-        for (let wordnumber = 0; wordnumber < words.length; wordnumber++) {
-            //console.log("wordslength: " + words.length);
-            if (words[wordnumber].startsWith("#")) {
-                if (words[wordnumber].endsWith("a") || words[wordnumber].endsWith("b") || words[wordnumber].endsWith("c") || 
-                words[wordnumber].endsWith("d") || words[wordnumber].endsWith("e") || words[wordnumber].endsWith("f") || 
-                words[wordnumber].endsWith("g") || words[wordnumber].endsWith("h") || words[wordnumber].endsWith("i") || 
-                words[wordnumber].endsWith("j") || words[wordnumber].endsWith("k") || words[wordnumber].endsWith("l") || 
-                words[wordnumber].endsWith("m") || words[wordnumber].endsWith("n") || words[wordnumber].endsWith("o") || 
-                words[wordnumber].endsWith("p") || words[wordnumber].endsWith("q") || words[wordnumber].endsWith("r") || 
-                words[wordnumber].endsWith("s") || words[wordnumber].endsWith("t") || words[wordnumber].endsWith("u") || 
-                words[wordnumber].endsWith("v") || words[wordnumber].endsWith("w") || words[wordnumber].endsWith("x") || 
-                words[wordnumber].endsWith("y") || words[wordnumber].endsWith("z") || words[wordnumber].endsWith("0") || 
-                words[wordnumber].endsWith("1") || words[wordnumber].endsWith("2") || words[wordnumber].endsWith("3") || 
-                words[wordnumber].endsWith("4") || words[wordnumber].endsWith("5") || words[wordnumber].endsWith("6") || 
-                words[wordnumber].endsWith("7") || words[wordnumber].endsWith("8") || words[wordnumber].endsWith("9")) {
-                    activechannels.length = activechannels.length++;
-                    activechannels.push(words[wordnumber]);
-                    continue;
-
-                }
-            }
         }
     }
 }
