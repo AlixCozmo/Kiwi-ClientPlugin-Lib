@@ -5,11 +5,14 @@ var lastcommandtimestamps = [];
 var ActiveNetwork = ""
 var CommandHistory = [];
 var ConnectedNetworks = [];
+var MonitoredUsers = [];
 var commands = [
-    { command: "/test", data: "-t", description: "Executes a test operation" },
-    { command: "/alias", data: "-a", description: "Manages aliases" },
-    { command: "/messages", data: "-m", description: "Handles messages" },
-    { command: "/deepl", data: "-d", description: "Translates text using DeepL" }
+    { command: "/test", data: "-t", description: "Executes a test operation", CommandWithUserTarget: false },
+    { command: "/alias", data: "-a", description: "Manages aliases", CommandWithUserTarget: false },
+    { command: "/messages", data: "-m", description: "Handles messages", CommandWithUserTarget: false },
+    { command: "/deepl", data: "-d", description: "Translates text using DeepL", CommandWithUserTarget: false },
+    { command: "/help", data: "-h", description: "Displays help", CommandWithUserTarget: false },
+    { command: "/dl-monitor", data: "-dm", description: "Marks a user for monitoring", CommandWithUserTarget: true }
 ];
 
 setInterval(function() {
@@ -99,7 +102,7 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
                 if (temp.startsWith("-")) {
                     WriteToCommandStampHistory(currentstamp, lastcommandtimestamps);
                     found = true;
-                    continue
+                    continue;
                 }
             }
         }
@@ -109,9 +112,10 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
     }
     
   
-    for (let i = 0; i < commands.length; i++) {
-        if (temp === commands[i].data) {
-            return commands[i].command; // if a command is found, return the command name
+    for (let i = 0; i < commands.length; i++) { // loop through the commands
+        if (temp.startsWith(commands[i].data)) {
+            //return commands[i].command; // if a command is found, return the command name
+            return temp.replace(commands[i].data, commands[i].command);
         }
     }
     return temp; // if no command is found, return the message
@@ -190,11 +194,6 @@ function GetActiveNetwork() {
     return InjectScript(string, false, "activechannelevent")
 }
 
-function InjectAliases() {
-    // this function injects the aliases into 'Highlights' section in the settings
-    const aliases = ["test", "messages", "deepl"];
-}
-
 function GetNick(channel, networkid, messageid) {
     let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[MESSAGEID].nick';
     string = string.replace('CHANNEL', channel);
@@ -248,19 +247,23 @@ function CheckStampHistory(stamp, lastcommandtimestamps) { // returns false if t
 }
 
 function CommandParser(command) {
-    // this function parses the command given to it
+    if (command == "No command has been run yet") {
+        return;
+    }
+    //command = command.replace(commands.data[SearchCommands(command)], commands.command[SearchCommands(command)]);
+    // ^^ this is a temporary fix, it should be replaced with a better solution
+    // ^^ copilot's words. i have no idea what i'm doing lmao
+    // ^^^^^^ this replaces the data with the command name and (should) retain any extra data, such as nicks
+    // this function parses and executes the command given to it
     if (command == "/test") {
-        //GlobalInt +=1;
         return "Test command has been run";
     }
     if (command == "/alias") {
-        //GlobalInt +=1;
         InjectAliases();
         return "Alias command has been run";
     }
-    if (command == "/messages") {
-
-        //GlobalInt +=1;
+    if (command == "/messages") { // temporary (i think) command or something. for now just for testing.
+        // anyway, it replays the last 5 messages in the channel
         MessagesArray = GetMessages(ActiveChannel, 5);
         for (let i = 0; i < (MessagesArray.length); i++) {
             LocalEcho(("Replay: " + MessagesArray[i]));
@@ -271,6 +274,22 @@ function CommandParser(command) {
         //GlobalInt +=1;
         return "hello!";
     }
+    else {
+        if (SearchCommands(command) != false) {
+            LocalEcho("Command found but not implemented yet");
+            } else {
+                LocalEcho("Command not recognized"); // if no command is found. this should never happen
+            }
+        }
+}
+
+function SearchCommands(command) { // if the command is found, return index, otherwise return false
+    for (let i = 0; i < commands.length; i++) {
+        if (commands[i].command == command) {
+            return i;
+        }
+    }
+    return false;
 }
 
 function GetConnectedNetworks() {
@@ -290,6 +309,7 @@ function InjectAliases() {
     let state = InjectScript(string, false, "aliasevent", false, false);
     state = JSON.parse(state);
     oldalias = state.user_settings.aliases;
+    // grab the current state, and extract the aliases
     if (oldalias == undefined) {
         oldalias = "# General aliases\n/p /part $1+\n/me /action $destination $1+\n/j /join $1+\n/q /query $1+\n/w /whois $1+\n/raw /quote $1+\n/connect /server $1+\n/cycle $channel? /lines /part $channel | /join $channel\n/active /back $1+\n/umode /mode $nick $1+\n\n# Op related aliases\n/op /quote mode $channel +o $1+\n/deop /quote mode $channel -o $1+\n/hop /quote mode $channel +h $1+\n/dehop /quote mode $channel -h $1+\n/voice /quote mode $channel +v $1+\n/devoice /quote mode $channel -v $1+\n/k /kick $channel $1+\n/bans /mode $channel +b\n/ban /quote mode $channel +b $1+\n/unban /quote mode $channel -b $1+\n\n# Misc aliases\n/slap /me slaps $1 around a bit with a large trout\n/tick /msg $channel ✔"
         // if there are no aliases, set the default aliases
@@ -303,6 +323,9 @@ function InjectAliases() {
         oldalias += commands[i].command; // add the command name to the aliases
         oldalias += " /echo "; // add a space after the command
         oldalias += commands[i].data; // add the command data to the aliases
+        if (commands[i].CommandWithUserTarget == true) {
+            oldalias += " $1+"; // add $1+ if the command requires a user target
+        }
     }
     
     state.user_settings.aliases = oldalias; // set the aliases to the new aliases
