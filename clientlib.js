@@ -7,11 +7,11 @@ var CommandHistory = [];
 var ConnectedNetworks = [];
 var MonitoredUsers = [];
 var commands = [
-    { command: "/test", data: "-t", description: "Executes a test operation", CommandWithUserTarget: false },
-    { command: "/alias", data: "-a", description: "Manages aliases", CommandWithUserTarget: false },
-    { command: "/messages", data: "-m", description: "Handles messages", CommandWithUserTarget: false },
-    { command: "/deepl", data: "-d", description: "Translates text using DeepL", CommandWithUserTarget: false },
-    { command: "/help", data: "-h", description: "Displays help", CommandWithUserTarget: false },
+    { command: "/test", data: "-tst", description: "Executes a test operation", CommandWithUserTarget: false },
+    { command: "/alias", data: "-als", description: "Manages aliases", CommandWithUserTarget: false },
+    { command: "/messages", data: "-msg", description: "Handles messages", CommandWithUserTarget: false },
+    { command: "/deepl", data: "-dl", description: "Translates text using DeepL", CommandWithUserTarget: false },
+    { command: "/help", data: "-hlp", description: "Displays help", CommandWithUserTarget: false },
     { command: "/dl-monitor", data: "-dm", description: "Marks a user for monitoring", CommandWithUserTarget: true }
 ];
 
