@@ -1,13 +1,20 @@
 console.log("init");
 //var GlobalInt = 0;
-var ActiveChannel = ""
+var ActiveChannel = "";
 var lastcommandtimestamps = [];
 var ActiveNetwork = ""
 var CommandHistory = [];
 var ConnectedNetworks = [];
+var commands = [
+    { command: "/test", data: "-t", description: "Executes a test operation" },
+    { command: "/alias", data: "-a", description: "Manages aliases" },
+    { command: "/messages", data: "-m", description: "Handles messages" },
+    { command: "/deepl", data: "-d", description: "Translates text using DeepL" }
+];
+
 setInterval(function() {
     Main()
-}, 500);
+}, 1000);
 
 function InjectScript(path, loop, eventname, listener=false, LocalSend=false) {
     // this function injects a script onto the page and returns the data that the script returns
@@ -89,7 +96,7 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
             currentstamp = GetTime(channel, a);
             if (CheckStampHistory(currentstamp, lastcommandtimestamps)) {
                 temp = GetMessage(channel, a)
-                if (temp == "-") {
+                if (temp.startsWith("-")) {
                     WriteToCommandStampHistory(currentstamp, lastcommandtimestamps);
                     found = true;
                     continue
@@ -100,27 +107,15 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
     if (!found) {
         return "No command has been run yet"; // return this message if no command is found
     }
-    /*
-    string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history_pos'
-    string = string.replace('CHANNEL', channel);
-    string = string.replace('NETWORKID', ActiveNetwork);
-    var HistoryNum = InjectScript(string, false, "latestcommandevent")
-    //HistoryNum += GlobalInt;
-    if (HistoryNum == 0) {
-        return "No command has been run yet";
+    
+  
+    for (let i = 0; i < commands.length; i++) {
+        if (temp === commands[i].data) {
+            return commands[i].command; // if a command is found, return the command name
+        }
     }
-    var string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history[HistoryNum]';
-    string = string.replace('CHANNEL', channel);
-    string = string.replace('NETWORKID', ActiveNetwork);
-    string = string.replace('HistoryNum', (HistoryNum-1)); // replace HistoryNum with the number. -1 to HistoryNum because it starts at 0
-    temp = InjectScript(string, false, "latestcommandevent")
-    if (temp == undefined) {
-        return "No command has been run yet";
-    }
-    else {
-        return temp;
-    }
-    */
+    return temp; // if no command is found, return the message
+    
 }
 
 function GetLayout() {
@@ -144,17 +139,19 @@ function GetMessage(channel, index) {
 function GetMessages(channel, amount, Filter=true) { // like GetMessage, but gets x amount of messages
     // Filter is a boolean that filters out messages that are caused by commands being run. such as "-"
     MessagesArray = [];
+    let Message = "";
     c = GetMessagesAmount(channel); // get the amount of messages in the channel
     c = c - 1; // subtract 1 from the amount of messages
     if (c < amount) { // if there are less than 5 messages, get the amount of messages available
         amount = c;
     }
     for (let i = 0; i <= amount; i++) { // loop through the amount of messages
-        temp = GetMessage(channel, i)
-        if (temp == "-") { // if the message is a command, skip it
+        Message = GetMessage(channel, i);
+        temp2 = GetNick(channel, ActiveNetwork, i);
+        if (temp2 == "*") { // if the message is a command, skip it
             continue;
         }
-        MessagesArray.push(temp); // get the message and push it to the array
+        MessagesArray.push(Message); // get the message and push it to the array
     }
     return MessagesArray; // return the array
 }
@@ -256,6 +253,11 @@ function CommandParser(command) {
         //GlobalInt +=1;
         return "Test command has been run";
     }
+    if (command == "/alias") {
+        //GlobalInt +=1;
+        InjectAliases();
+        return "Alias command has been run";
+    }
     if (command == "/messages") {
 
         //GlobalInt +=1;
@@ -284,14 +286,32 @@ function GetConnectedNetworks() {
 
 function InjectAliases() {
     // this function injects the aliases into the page
-    let aliases = ["test", "messages", "deepl"];
-    for (let i = 0; i < aliases.length; i++) {
-        let string = 'window.kiwi.state.getSetting("settings.aliases").push("ALIAS")';
-        string = string.replace('ALIAS', aliases[i]);
-        InjectScript(string, false, "aliasevent", false, true);
+    let string = "kiwi.state.exportState()"
+    let state = InjectScript(string, false, "aliasevent", false, false);
+    state = JSON.parse(state);
+    oldalias = state.user_settings.aliases;
+    if (oldalias == undefined) {
+        oldalias = "# General aliases\n/p /part $1+\n/me /action $destination $1+\n/j /join $1+\n/q /query $1+\n/w /whois $1+\n/raw /quote $1+\n/connect /server $1+\n/cycle $channel? /lines /part $channel | /join $channel\n/active /back $1+\n/umode /mode $nick $1+\n\n# Op related aliases\n/op /quote mode $channel +o $1+\n/deop /quote mode $channel -o $1+\n/hop /quote mode $channel +h $1+\n/dehop /quote mode $channel -h $1+\n/voice /quote mode $channel +v $1+\n/devoice /quote mode $channel -v $1+\n/k /kick $channel $1+\n/bans /mode $channel +b\n/ban /quote mode $channel +b $1+\n/unban /quote mode $channel -b $1+\n\n# Misc aliases\n/slap /me slaps $1 around a bit with a large trout\n/tick /msg $channel ✔"
+        // if there are no aliases, set the default aliases
     }
-    // copilot just made this all up lol, no idea if it works or not lmfaoooo
-    // how do i kill myself in the most painless way possible lmao
+    
+    for (let i = 0; i < commands.length; i++) { // loop through the commands
+        if (oldalias.includes(commands[i].command)) {
+            continue; // if the command is already in the aliases, skip it
+        }
+        oldalias += "\n";
+        oldalias += commands[i].command; // add the command name to the aliases
+        oldalias += " /echo "; // add a space after the command
+        oldalias += commands[i].data; // add the command data to the aliases
+    }
+    
+    state.user_settings.aliases = oldalias; // set the aliases to the new aliases
+    let modifiedState = JSON.stringify(state); // convert the state to a string
+    string = "kiwi.state.importState('JSON')"
+    string = string.replace('JSON', modifiedState); // replace JSON with the modified state
+    string = string.replaceAll("\\n", "\\\\n"); // replace newlines with escaped newlines
+    return InjectScript(string, false, "aliasevent", false, true); // inject the aliases
+    // how do i kill myself in the most painless way possible lmao 
 }
 
 window.ClientLib = ClientLib;
