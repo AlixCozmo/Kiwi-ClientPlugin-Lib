@@ -3,6 +3,7 @@ console.log("init");
 var ActiveChannel = ""
 var lastcommandtimestamps = [];
 var ActiveNetwork = ""
+var CommandHistory = [];
 var ConnectedNetworks = [];
 setInterval(function() {
     Main()
@@ -67,7 +68,6 @@ var ClientLib = {
     GetLength: GetLength,
     GetMessages: GetMessages
 
-
 }
 function GetSettings() {
     return InjectScript('kiwi.state.getSettings("settings")', false, "settingsevent")
@@ -100,6 +100,7 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
     if (!found) {
         return "No command has been run yet"; // return this message if no command is found
     }
+    /*
     string = 'window.kiwi.state.getBufferByName(NETWORKID, "CHANNEL").input_history_pos'
     string = string.replace('CHANNEL', channel);
     string = string.replace('NETWORKID', ActiveNetwork);
@@ -119,6 +120,7 @@ function GetLatestCommand(channel, networkid) { // get the latest run command
     else {
         return temp;
     }
+    */
 }
 
 function GetLayout() {
@@ -191,6 +193,11 @@ function GetActiveNetwork() {
     return InjectScript(string, false, "activechannelevent")
 }
 
+function InjectAliases() {
+    // this function injects the aliases into 'Highlights' section in the settings
+    const aliases = ["test", "messages", "deepl"];
+}
+
 function GetNick(channel, networkid, messageid) {
     let string = 'kiwi.state.getBufferByName(NETWORKID, "CHANNEL").messagesObj.messages[MESSAGEID].nick';
     string = string.replace('CHANNEL', channel);
@@ -227,7 +234,7 @@ function Main() {
 
 }
 
-function WriteToCommandStampHistory(stamp, lastcommandtimestamps) {
+function WriteToCommandStampHistory(stamp, lastcommandtimestamps) { // writes the timestamp to the history
     if (lastcommandtimestamps.length > 5) {
         lastcommandtimestamps.shift();
     }
@@ -273,6 +280,18 @@ function GetConnectedNetworks() {
             ConnectedNetworks.push(networks[i]);
         }
     }
+}
+
+function InjectAliases() {
+    // this function injects the aliases into the page
+    let aliases = ["test", "messages", "deepl"];
+    for (let i = 0; i < aliases.length; i++) {
+        let string = 'window.kiwi.state.getSetting("settings.aliases").push("ALIAS")';
+        string = string.replace('ALIAS', aliases[i]);
+        InjectScript(string, false, "aliasevent", false, true);
+    }
+    // copilot just made this all up lol, no idea if it works or not lmfaoooo
+    // how do i kill myself in the most painless way possible lmao
 }
 
 window.ClientLib = ClientLib;
